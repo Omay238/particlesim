@@ -10,6 +10,9 @@ use ultraviolet::Vec2;
 
 use once_cell::sync::Lazy;
 
+use winit;
+use winit_input_helper;
+
 // Used to communicate between the simulation and renderer threads
 static PARTICLES: Lazy<Mutex<Option<Vec<Particle>>>> = Lazy::new(|| Mutex::new(None));
 static RENDERER_CLONE: Lazy<Mutex<Vec<Renderer>>> = Lazy::new(|| Mutex::new(Vec::new()));
@@ -65,6 +68,9 @@ struct Renderer {
     pub velocity_half_life: f32,
 
     texture: Option<egui::TextureHandle>,
+
+    total_scroll: f32,
+    total_diff: (f32, f32)
 }
 
 impl quarkstrom::Renderer for Renderer {
@@ -81,16 +87,20 @@ impl quarkstrom::Renderer for Renderer {
             simulation_speed: 1.0,
             velocity_half_life: 0.05,
             texture: None,
+
+            total_scroll: 0.0,
+            total_diff: (0.0, 0.0)
         }
     }
 
     fn input(&mut self, input: &winit_input_helper::WinitInputHelper, width: u16, height: u16) {
         if let Some((mx, my)) = input.cursor() {
             // Scroll steps to double/halve the scale
-            let steps = 5.0;
+            let steps = 1.0;
 
             // Modify input
-            let zoom = (-input.scroll_diff().1 / steps).exp2();
+            let zoom = (self.total_scroll - input.scroll_diff().1 / steps).exp2();
+            self.total_scroll = input.scroll_diff().1;
 
             // Screen space -> view space
             let target =
@@ -105,10 +115,14 @@ impl quarkstrom::Renderer for Renderer {
 
         // Grab
         if input.mouse_held(winit::event::MouseButton::Left) {
-            let (mdx, mdy) = input.mouse_diff();
-            self.pos.x -= mdx / height as f32 * self.scale * 2.0;
-            self.pos.y += mdy / height as f32 * self.scale * 2.0;
+            let (mdxa, mdya) = input.mouse_diff();
+            let mdx = mdxa - self.total_diff.0;
+            let mdy = mdya - self.total_diff.1;
+            self.pos.x -= mdx / height as f32 * self.scale * 4.0;
+            self.pos.y += mdy / height as f32 * self.scale * 4.0;
         }
+
+        self.total_diff = input.mouse_diff();
     }
 
     fn render(&mut self, ctx: &mut quarkstrom::RenderContext) {
