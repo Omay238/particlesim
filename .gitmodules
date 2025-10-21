@@ -1,0 +1,3 @@
+[submodule "quarkstrom"]
+	path = quarkstrom
+	url = https://github.com/Omay238/quarkstrom.git
