@@ -10,9 +10,6 @@ use ultraviolet::Vec2;
 
 use once_cell::sync::Lazy;
 
-use winit;
-use winit_input_helper;
-
 // Used to communicate between the simulation and renderer threads
 static PARTICLES: Lazy<Mutex<Option<Vec<Particle>>>> = Lazy::new(|| Mutex::new(None));
 static RENDERER_CLONE: Lazy<Mutex<Vec<Renderer>>> = Lazy::new(|| Mutex::new(Vec::new()));
