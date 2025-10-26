@@ -7,7 +7,6 @@ edition = "2024"
 quarkstrom = { path="./quarkstrom" }
 
 # Graphics
-winit = "0.30.12"
 winit_input_helper = "0.17.0"
 
 # Gui
@@ -15,8 +14,7 @@ egui = "0.33.0"
 
 # Math
 ultraviolet = { version = "0.10.0", features = [ "f64" ] }
-fastrand = "2.3.0"
 
 # Other
 once_cell = "1.21.3"
-tokio = { version = "1.48.0", features = ["rt", "rt-multi-thread", "macros"] }
+tokio = { version = "1.48.0", features = ["rt", "rt-multi-thread", "macros", "sync"] }

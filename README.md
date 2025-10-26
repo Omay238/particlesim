@@ -9,6 +9,11 @@ I've seen, [Quarkstrom](https://github.com/DeadlockCode/quarkstrom), and [forked
 it to update the libraries, and add some features. That took around 11.5 hours, while the actual simulation (this
 repository) took around 8 hours as of writing this readme.
 
+This was pretty difficult to make, as there were a lot of things that I had never done with Rust, and I'm still quite
+new. It would've been quite reasonable to do this in like half the time, if I were to know what I was doing, but
+unfortunately, I do not. There's also some bugs that I have not been able to squash. (Who knows if this'll change by the
+time I submit the project)
+
 ## Running
 
 The easiest way to run is to download a release from GitHub (only time will tell if I get that working in time lol), but
