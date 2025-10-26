@@ -10,8 +10,6 @@ use once_cell::sync::Lazy;
 // Used to communicate between the simulation and renderer threads
 static PARTICLES: Lazy<egui::mutex::Mutex<Option<Vec<Particle>>>> =
     Lazy::new(|| egui::mutex::Mutex::new(None));
-static RENDERER_CLONE: Lazy<egui::mutex::Mutex<Vec<Renderer>>> =
-    Lazy::new(|| egui::mutex::Mutex::new(Vec::new()));
 static STOPPED: Lazy<egui::mutex::Mutex<bool>> = Lazy::new(|| egui::mutex::Mutex::new(false));
 
 fn get_tarkosky_lines() -> Vec<ultraviolet::Vec2> {
@@ -101,7 +99,7 @@ impl quarkstrom::Renderer for Renderer {
         }
     }
 
-    fn input(&mut self, input: &WinitInputHelper, width: u16, height: u16) {
+    fn input(&mut self, input: &WinitInputHelper, _width: u16, _height: u16) {
         if input.held_shift() {
             self.pos = Vec2::new(0.8, 0.0);
             self.scale = 0.1;
@@ -141,7 +139,7 @@ impl quarkstrom::Renderer for Renderer {
         }
     }
 
-    fn gui(&mut self, ctx: &egui::Context) {
+    fn gui(&mut self, _ctx: &egui::Context) {
         return;
     }
 }
