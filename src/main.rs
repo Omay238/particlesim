@@ -94,18 +94,18 @@ impl quarkstrom::Renderer for Renderer {
     fn new() -> Self {
         Self {
             pos: Vec2::new(0.0, 0.0),
-            scale: 1.0,
+            scale: 100.0,
             demo_type: DemoType::Tarkosky,
         }
     }
 
     fn input(&mut self, input: &WinitInputHelper, _width: u16, _height: u16) {
         if input.held_shift() {
-            self.pos = Vec2::new(0.8, 0.0);
-            self.scale = 0.1;
+            self.pos = Vec2::new(80.0, 0.0);
+            self.scale = 10.0;
         } else {
             self.pos = Vec2::new(0.0, 0.0);
-            self.scale = 1.0;
+            self.scale = 100.0;
         }
     }
 
@@ -148,7 +148,7 @@ impl quarkstrom::Renderer for Renderer {
 
                 ctx.draw_circle(
                     ultraviolet::Vec2::new(particle.pos.x as f32, particle.pos.y as f32),
-                    0.01,
+                    0.1,
                     [r as u8, g as u8, b as u8, 255],
                 );
             }
@@ -159,10 +159,10 @@ impl quarkstrom::Renderer for Renderer {
                 let points = get_tarkosky_lines();
 
                 for i in 0..points.len() - 1 {
-                    ctx.draw_line(points[i] * 0.4, points[i + 1] * 0.4, [255, 255, 255, 255]);
+                    ctx.draw_line(points[i] * 40.0, points[i + 1] * 40.0, [255, 255, 255, 255]);
                 }
 
-                ctx.draw_circle(ultraviolet::Vec2::new(0.8, 0.0), 0.002, [255, 0, 0, 128]);
+                ctx.draw_circle(ultraviolet::Vec2::new(80.0, 0.0), 0.2, [255, 0, 0, 128]);
             }
         }
     }
@@ -195,7 +195,7 @@ fn line_point(p1: Vec2, p2: Vec2, p3: Vec2) -> bool {
 
     let len = (p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2);
 
-    if d1 + d2 >= len - 0.000005 && d1 + d2 <= len + 0.000005 {
+    if d1 + d2 >= len - 0.05 && d1 + d2 <= len + 0.05 {
         return true;
     }
     false
@@ -217,7 +217,7 @@ impl Simulation {
 
         for i in 0..num_particles {
             particles.push(Particle {
-                pos: Vec2::new(-0.8, 0.0),
+                pos: Vec2::new(-80.0, 0.0),
                 angle: std::f64::consts::TAU * (i as f64 / num_particles as f64),
             });
         }
@@ -228,7 +228,7 @@ impl Simulation {
     fn update_simulation(&mut self) {
         for particle in &mut self.particles {
             let mut goal_pos =
-                particle.pos + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.001;
+                particle.pos + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.1;
 
             let points = get_tarkosky_lines();
 
@@ -236,8 +236,8 @@ impl Simulation {
                 if let Some(intersection_point) = line_line(
                     particle.pos,
                     goal_pos,
-                    Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4,
-                    Vec2::new(points[i + 1].x as f64, points[i + 1].y as f64) * 0.4,
+                    Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0,
+                    Vec2::new(points[i + 1].x as f64, points[i + 1].y as f64) * 40.0,
                 ) {
                     particle.pos = intersection_point;
 
@@ -262,14 +262,14 @@ impl Simulation {
                     particle.angle = f64::atan2(reflected.y, reflected.x);
 
                     goal_pos = intersection_point
-                        + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.001;
+                        + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.1;
                 } else if line_point(
                     particle.pos,
                     goal_pos,
-                    Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4,
+                    Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0,
                 ) {
                     particle.angle -= std::f64::consts::PI;
-                    goal_pos = Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4;
+                    goal_pos = Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0;
                 }
             }
 
