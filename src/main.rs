@@ -172,6 +172,10 @@ impl quarkstrom::Renderer for Renderer {
     }
 }
 
+fn dst(p1: Vec2, p2: Vec2) -> f64 {
+    ((p1.x - p2.x).powi(2) + (p1.y - p2.y).powi(2)).sqrt()
+}
+
 // https://www.jeffreythompson.org/collision-detection/line-line.php
 fn line_line(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) -> Option<Vec2> {
     let u_a = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x))
@@ -239,6 +243,8 @@ impl Simulation {
                     Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0,
                     Vec2::new(points[i + 1].x as f64, points[i + 1].y as f64) * 40.0,
                 ) {
+                    let remaining_dist = 0.1 - dst(particle.pos, intersection_point);
+
                     particle.pos = intersection_point;
 
                     // lmaoooooo i used desmos to find this xd i don't know how it works
@@ -262,14 +268,18 @@ impl Simulation {
                     particle.angle = f64::atan2(reflected.y, reflected.x);
 
                     goal_pos = intersection_point
-                        + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.1;
+                        + Vec2::new(particle.angle.cos(), particle.angle.sin()) * remaining_dist;
                 } else if line_point(
                     particle.pos,
                     goal_pos,
                     Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0,
                 ) {
+                    let intersection_point = Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0;
+
+                    let remaining_dist = 0.1 - dst(particle.pos, intersection_point);
                     particle.angle -= std::f64::consts::PI;
-                    goal_pos = Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0;
+                    goal_pos = intersection_point
+                        + Vec2::new(particle.angle.cos(), particle.angle.sin()) * remaining_dist;
                 }
             }
 
