@@ -1,5 +1,5 @@
 [package]
-name = "particlesim"
+name = "billiards_sim"
 version = "0.1.0"
 edition = "2024"
 
@@ -14,7 +14,7 @@ winit_input_helper = "0.17.0"
 egui = "0.33.0"
 
 # Math
-ultraviolet = "0.10.0"
+ultraviolet = { version = "0.10.0", features = [ "f64" ] }
 fastrand = "2.3.0"
 
 # Other
