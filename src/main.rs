@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 
 // Used to communicate between the simulation and renderer threads
 static PARTICLES: Lazy<egui::mutex::Mutex<Option<Vec<Vec<Particle>>>>> =
-    Lazy::new(|| egui::mutex::Mutex::new(None));
+    Lazy::new(|| egui::mutex::Mutex::new(vec![vec![]].into()));
 static STOPPED: Lazy<egui::mutex::Mutex<bool>> = Lazy::new(|| egui::mutex::Mutex::new(false));
 static DEMO_TYPE: Lazy<egui::mutex::Mutex<DemoType>> = Lazy::new(|| egui::mutex::Mutex::new(DemoType::Castro));
 
@@ -284,13 +284,16 @@ async fn main() {
     let desired_frame_time =
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
 
-    let mut threader = Threader::new(8, 65536/8).await;
+    // let mut threader = Threader::new(8, 65536/8).await;
+
+    let mut simulation = Simulation::new(65536, None);
 
     tokio::spawn(async move {
         loop {
             let frame_timer = std::time::Instant::now();
 
-            threader.update();
+            // threader.update();
+            simulation.update_simulation(0);
 
             // Cap tps
             if let Some(desired_frame_time) = desired_frame_time {
