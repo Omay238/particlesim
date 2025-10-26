@@ -11,135 +11,266 @@ use once_cell::sync::Lazy;
 static PARTICLES: Lazy<egui::mutex::Mutex<Option<Vec<Vec<Particle>>>>> =
     Lazy::new(|| egui::mutex::Mutex::new(None));
 static STOPPED: Lazy<egui::mutex::Mutex<bool>> = Lazy::new(|| egui::mutex::Mutex::new(false));
+static DEMO_TYPE: Lazy<egui::mutex::Mutex<DemoType>> = Lazy::new(|| egui::mutex::Mutex::new(DemoType::Castro));
 
-fn get_tarkosky_lines() -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2, ultraviolet::Vec2)> {
-    vec![
-        (
-            ultraviolet::Vec2::new(0.0, 0.0),
-            ultraviolet::Vec2::new(1.0, 0.0),
-            ultraviolet::Vec2::new(1.0, 1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(1.0, 0.0),
-            ultraviolet::Vec2::new(1.0, 1.0),
-            ultraviolet::Vec2::new(2.0, 2.0),
-        ),
-        (
-            ultraviolet::Vec2::new(1.0, 1.0),
-            ultraviolet::Vec2::new(2.0, 2.0),
-            ultraviolet::Vec2::new(2.0, 1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(2.0, 2.0),
-            ultraviolet::Vec2::new(2.0, 1.0),
-            ultraviolet::Vec2::new(3.0, 1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(2.0, 1.0),
-            ultraviolet::Vec2::new(3.0, 1.0),
-            ultraviolet::Vec2::new(3.0, 0.0),
-        ),
-        (
-            ultraviolet::Vec2::new(3.0, 1.0),
-            ultraviolet::Vec2::new(3.0, 0.0),
-            ultraviolet::Vec2::new(4.0, 0.0),
-        ),
-        (
-            ultraviolet::Vec2::new(3.0, 0.0),
-            ultraviolet::Vec2::new(4.0, 0.0),
-            ultraviolet::Vec2::new(3.0, -1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(4.0, 0.0),
-            ultraviolet::Vec2::new(3.0, -1.0),
-            ultraviolet::Vec2::new(2.0, -1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(3.0, -1.0),
-            ultraviolet::Vec2::new(2.0, -1.0),
-            ultraviolet::Vec2::new(2.0, -2.0),
-        ),
-        (
-            ultraviolet::Vec2::new(2.0, -1.0),
-            ultraviolet::Vec2::new(2.0, -2.0),
-            ultraviolet::Vec2::new(1.0, -1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(2.0, -2.0),
-            ultraviolet::Vec2::new(1.0, -1.0),
-            ultraviolet::Vec2::new(0.0, -1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(1.0, -1.0),
-            ultraviolet::Vec2::new(0.0, -1.0),
-            ultraviolet::Vec2::new(0.0, -2.0),
-        ),
-        (
-            ultraviolet::Vec2::new(0.0, -1.0),
-            ultraviolet::Vec2::new(0.0, -2.0),
-            ultraviolet::Vec2::new(-1.0, -1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(0.0, -2.0),
-            ultraviolet::Vec2::new(-1.0, -1.0),
-            ultraviolet::Vec2::new(-2.0, -1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(-1.0, -1.0),
-            ultraviolet::Vec2::new(-2.0, -1.0),
-            ultraviolet::Vec2::new(-2.0, -2.0),
-        ),
-        (
-            ultraviolet::Vec2::new(-2.0, -1.0),
-            ultraviolet::Vec2::new(-2.0, -2.0),
-            ultraviolet::Vec2::new(-3.0, -1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(-2.0, -2.0),
-            ultraviolet::Vec2::new(-3.0, -1.0),
-            ultraviolet::Vec2::new(-3.0, 0.0),
-        ),
-        (
-            ultraviolet::Vec2::new(-3.0, -1.0),
-            ultraviolet::Vec2::new(-3.0, 0.0),
-            ultraviolet::Vec2::new(-4.0, 0.0),
-        ),
-        (
-            ultraviolet::Vec2::new(-3.0, 0.0),
-            ultraviolet::Vec2::new(-4.0, 0.0),
-            ultraviolet::Vec2::new(-3.0, 1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(-4.0, 0.0),
-            ultraviolet::Vec2::new(-3.0, 1.0),
-            ultraviolet::Vec2::new(-2.0, 1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(-3.0, 1.0),
-            ultraviolet::Vec2::new(-2.0, 1.0),
-            ultraviolet::Vec2::new(-2.0, 2.0),
-        ),
-        (
-            ultraviolet::Vec2::new(-2.0, 1.0),
-            ultraviolet::Vec2::new(-2.0, 2.0),
-            ultraviolet::Vec2::new(-1.0, 1.0),
-        ),
-        (
-            ultraviolet::Vec2::new(-2.0, 2.0),
-            ultraviolet::Vec2::new(-1.0, 1.0),
-            ultraviolet::Vec2::new(-1.0, 0.0),
-        ),
-        (
-            ultraviolet::Vec2::new(-1.0, 1.0),
-            ultraviolet::Vec2::new(-1.0, 0.0),
-            ultraviolet::Vec2::new(0.0, 0.0),
-        ),
-        (
-            ultraviolet::Vec2::new(-1.0, 0.0),
-            ultraviolet::Vec2::new(0.0, 0.0),
-            ultraviolet::Vec2::new(1.0, 0.0),
-        ),
-    ]
+// this function lowkey sucks really hard lmao
+fn get_lines(demo_type: &DemoType) -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2, ultraviolet::Vec2)> {
+    match demo_type {
+        DemoType::Tarkosky => vec![
+            (
+                ultraviolet::Vec2::new(0.0, 0.0),
+                ultraviolet::Vec2::new(1.0, 0.0),
+                ultraviolet::Vec2::new(1.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(1.0, 0.0),
+                ultraviolet::Vec2::new(1.0, 1.0),
+                ultraviolet::Vec2::new(2.0, 2.0),
+            ),
+            (
+                ultraviolet::Vec2::new(1.0, 1.0),
+                ultraviolet::Vec2::new(2.0, 2.0),
+                ultraviolet::Vec2::new(2.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(2.0, 2.0),
+                ultraviolet::Vec2::new(2.0, 1.0),
+                ultraviolet::Vec2::new(3.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(2.0, 1.0),
+                ultraviolet::Vec2::new(3.0, 1.0),
+                ultraviolet::Vec2::new(3.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(3.0, 1.0),
+                ultraviolet::Vec2::new(3.0, 0.0),
+                ultraviolet::Vec2::new(4.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(3.0, 0.0),
+                ultraviolet::Vec2::new(4.0, 0.0),
+                ultraviolet::Vec2::new(3.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(4.0, 0.0),
+                ultraviolet::Vec2::new(3.0, -1.0),
+                ultraviolet::Vec2::new(2.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(3.0, -1.0),
+                ultraviolet::Vec2::new(2.0, -1.0),
+                ultraviolet::Vec2::new(2.0, -2.0),
+            ),
+            (
+                ultraviolet::Vec2::new(2.0, -1.0),
+                ultraviolet::Vec2::new(2.0, -2.0),
+                ultraviolet::Vec2::new(1.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(2.0, -2.0),
+                ultraviolet::Vec2::new(1.0, -1.0),
+                ultraviolet::Vec2::new(0.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(1.0, -1.0),
+                ultraviolet::Vec2::new(0.0, -1.0),
+                ultraviolet::Vec2::new(0.0, -2.0),
+            ),
+            (
+                ultraviolet::Vec2::new(0.0, -1.0),
+                ultraviolet::Vec2::new(0.0, -2.0),
+                ultraviolet::Vec2::new(-1.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(0.0, -2.0),
+                ultraviolet::Vec2::new(-1.0, -1.0),
+                ultraviolet::Vec2::new(-2.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-1.0, -1.0),
+                ultraviolet::Vec2::new(-2.0, -1.0),
+                ultraviolet::Vec2::new(-2.0, -2.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-2.0, -1.0),
+                ultraviolet::Vec2::new(-2.0, -2.0),
+                ultraviolet::Vec2::new(-3.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-2.0, -2.0),
+                ultraviolet::Vec2::new(-3.0, -1.0),
+                ultraviolet::Vec2::new(-3.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-3.0, -1.0),
+                ultraviolet::Vec2::new(-3.0, 0.0),
+                ultraviolet::Vec2::new(-4.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-3.0, 0.0),
+                ultraviolet::Vec2::new(-4.0, 0.0),
+                ultraviolet::Vec2::new(-3.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-4.0, 0.0),
+                ultraviolet::Vec2::new(-3.0, 1.0),
+                ultraviolet::Vec2::new(-2.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-3.0, 1.0),
+                ultraviolet::Vec2::new(-2.0, 1.0),
+                ultraviolet::Vec2::new(-2.0, 2.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-2.0, 1.0),
+                ultraviolet::Vec2::new(-2.0, 2.0),
+                ultraviolet::Vec2::new(-1.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-2.0, 2.0),
+                ultraviolet::Vec2::new(-1.0, 1.0),
+                ultraviolet::Vec2::new(-1.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-1.0, 1.0),
+                ultraviolet::Vec2::new(-1.0, 0.0),
+                ultraviolet::Vec2::new(0.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-1.0, 0.0),
+                ultraviolet::Vec2::new(0.0, 0.0),
+                ultraviolet::Vec2::new(1.0, 0.0),
+            ),
+        ],
+        DemoType::Castro => vec![
+            (
+                ultraviolet::Vec2::new(0.0, 0.0),
+                ultraviolet::Vec2::new(1.0, 0.0),
+                ultraviolet::Vec2::new(1.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(1.0, 0.0),
+                ultraviolet::Vec2::new(1.0, 1.0),
+                ultraviolet::Vec2::new(2.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(1.0, 1.0),
+                ultraviolet::Vec2::new(2.0, 1.0),
+                ultraviolet::Vec2::new(2.0, 2.0),
+            ),
+            (
+                ultraviolet::Vec2::new(2.0, 1.0),
+                ultraviolet::Vec2::new(2.0, 2.0),
+                ultraviolet::Vec2::new(3.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(2.0, 2.0),
+                ultraviolet::Vec2::new(3.0, 1.0),
+                ultraviolet::Vec2::new(3.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(3.0, 1.0),
+                ultraviolet::Vec2::new(3.0, 0.0),
+                ultraviolet::Vec2::new(4.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(3.0, 0.0),
+                ultraviolet::Vec2::new(4.0, 0.0),
+                ultraviolet::Vec2::new(3.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(4.0, 0.0),
+                ultraviolet::Vec2::new(3.0, -1.0),
+                ultraviolet::Vec2::new(2.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(3.0, -1.0),
+                ultraviolet::Vec2::new(2.0, -1.0),
+                ultraviolet::Vec2::new(2.0, -2.0),
+            ),
+            (
+                ultraviolet::Vec2::new(2.0, -1.0),
+                ultraviolet::Vec2::new(2.0, -2.0),
+                ultraviolet::Vec2::new(1.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(2.0, -2.0),
+                ultraviolet::Vec2::new(1.0, -1.0),
+                ultraviolet::Vec2::new(0.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(1.0, -1.0),
+                ultraviolet::Vec2::new(0.0, -1.0),
+                ultraviolet::Vec2::new(0.0, -2.0),
+            ),
+            (
+                ultraviolet::Vec2::new(0.0, -1.0),
+                ultraviolet::Vec2::new(0.0, -2.0),
+                ultraviolet::Vec2::new(-1.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(0.0, -2.0),
+                ultraviolet::Vec2::new(-1.0, -1.0),
+                ultraviolet::Vec2::new(-2.0, -2.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-1.0, -1.0),
+                ultraviolet::Vec2::new(-2.0, -2.0),
+                ultraviolet::Vec2::new(-2.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-2.0, -2.0),
+                ultraviolet::Vec2::new(-2.0, -1.0),
+                ultraviolet::Vec2::new(-3.0, -1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-2.0, -1.0),
+                ultraviolet::Vec2::new(-3.0, -1.0),
+                ultraviolet::Vec2::new(-4.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-3.0, -1.0),
+                ultraviolet::Vec2::new(-4.0, 0.0),
+                ultraviolet::Vec2::new(-3.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-4.0, 0.0),
+                ultraviolet::Vec2::new(-3.0, 0.0),
+                ultraviolet::Vec2::new(-3.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-3.0, 0.0),
+                ultraviolet::Vec2::new(-3.0, 1.0),
+                ultraviolet::Vec2::new(-2.0, 2.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-3.0, 1.0),
+                ultraviolet::Vec2::new(-2.0, 2.0),
+                ultraviolet::Vec2::new(-2.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-2.0, 2.0),
+                ultraviolet::Vec2::new(-2.0, 1.0),
+                ultraviolet::Vec2::new(-1.0, 1.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-2.0, 1.0),
+                ultraviolet::Vec2::new(-1.0, 1.0),
+                ultraviolet::Vec2::new(-1.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-1.0, 1.0),
+                ultraviolet::Vec2::new(-1.0, 0.0),
+                ultraviolet::Vec2::new(0.0, 0.0),
+            ),
+            (
+                ultraviolet::Vec2::new(-1.0, 0.0),
+                ultraviolet::Vec2::new(0.0, 0.0),
+                ultraviolet::Vec2::new(1.0, 0.0),
+            )
+        ]
+    }
 }
 
 #[tokio::main]
@@ -179,6 +310,7 @@ async fn main() {
 #[derive(Clone)]
 enum DemoType {
     Tarkosky,
+    Castro
 }
 
 #[derive(Clone)]
@@ -193,7 +325,7 @@ impl quarkstrom::Renderer for Renderer {
         Self {
             pos: Vec2::new(0.0, 0.0),
             scale: 100.0,
-            demo_type: DemoType::Tarkosky,
+            demo_type: DEMO_TYPE.lock().to_owned(),
         }
     }
 
@@ -254,14 +386,17 @@ impl quarkstrom::Renderer for Renderer {
             }
         }
 
+        let points = get_lines(&self.demo_type);
+
+        for i in 0..points.len() {
+            ctx.draw_line(points[i].0 * 40.0, points[i].1 * 40.0, [255, 255, 255, 255]);
+        }
+
         match self.demo_type {
             DemoType::Tarkosky => {
-                let points = get_tarkosky_lines();
-
-                for i in 0..points.len() {
-                    ctx.draw_line(points[i].0 * 40.0, points[i].1 * 40.0, [255, 255, 255, 255]);
-                }
-
+                ctx.draw_circle(ultraviolet::Vec2::new(80.0, 0.0), 0.2, [255, 0, 0, 128]);
+            },
+            DemoType::Castro => {
                 ctx.draw_circle(ultraviolet::Vec2::new(80.0, 0.0), 0.2, [255, 0, 0, 128]);
             }
         }
@@ -345,7 +480,7 @@ impl Simulation {
             let mut goal_pos =
                 particle.pos + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.1;
 
-            let points = get_tarkosky_lines();
+            let points = get_lines(&DEMO_TYPE.lock());
 
             for i in 0..points.len() {
                 if let Some(intersection_point) = line_line(
