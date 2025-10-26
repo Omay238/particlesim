@@ -148,12 +148,12 @@ async fn main() {
         window_mode: quarkstrom::WindowMode::Windowed(1280, 720),
     };
 
-    let tps_cap: Option<u32> = Some(60);
+    let tps_cap: Option<u32> = None;
 
     let desired_frame_time =
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
 
-    let mut threader = Threader::new(4, 65536).await;
+    let mut threader = Threader::new(8, 65536/8).await;
 
     tokio::spawn(async move {
         loop {
@@ -336,6 +336,11 @@ impl Simulation {
     }
 
     fn update_simulation(&mut self, id: usize) {
+        let pt = (*PARTICLES.lock().as_mut().unwrap().get_mut(id).unwrap()).to_vec();
+        if pt.len() > 0 {
+            self.particles = pt;
+        }
+
         for particle in &mut self.particles {
             let mut goal_pos =
                 particle.pos + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.1;
@@ -413,8 +418,7 @@ impl Simulation {
             particle.pos = goal_pos;
         }
 
-        *PARTICLES.lock().as_mut().unwrap()
-            .get_mut(id).unwrap() = self.particles.clone();
+        *PARTICLES.lock().as_mut().unwrap().get_mut(id).unwrap() = self.particles.clone();
     }
 }
 
