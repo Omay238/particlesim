@@ -143,7 +143,7 @@ impl quarkstrom::Renderer for Renderer {
 }
 
 // https://www.jeffreythompson.org/collision-detection/line-line.php
-fn segment_intersection_point(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) -> Option<Vec2> {
+fn line_line(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) -> Option<Vec2> {
     let denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
 
     if denom.abs() < f64::EPSILON {
@@ -167,6 +167,19 @@ fn segment_intersection_point(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) -> Option<
     } else {
         None
     }
+}
+
+fn line_point(p1: Vec2, p2: Vec2, p3: Vec2) -> bool {
+    // use squared distance because it's just comparisons
+    let d1 = (p3.x - p1.x).powi(2) + (p3.y - p1.y).powi(2);
+    let d2 = (p3.x - p2.x).powi(2) + (p3.y - p2.y).powi(2);
+
+    let len = (p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2);
+
+    if d1 + d2 >= len - 0.00001 && d1 + d2 <= len + 0.00001 {
+        return true;
+    }
+    false
 }
 
 
@@ -203,7 +216,7 @@ impl Simulation {
             let points = get_tarkosky_lines();
 
             for i in 0..points.len() - 1 {
-                if let Some(intersection_point) = segment_intersection_point(
+                if let Some(intersection_point) = line_line(
                     particle.pos,
                     goal_pos,
                     Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4,
@@ -229,6 +242,10 @@ impl Simulation {
                     particle.angle = f64::atan2(reflected.y, reflected.x);
 
                     goal_pos = intersection_point
+                        + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.001;
+                } else if line_point(particle.pos, goal_pos, Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4) {
+                    particle.angle -= std::f64::consts::PI;
+                    goal_pos = Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4
                         + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.001;
                 }
             }
