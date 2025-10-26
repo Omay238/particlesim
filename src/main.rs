@@ -148,7 +148,7 @@ async fn main() {
         window_mode: quarkstrom::WindowMode::Windowed(1280, 720),
     };
 
-    let tps_cap: Option<u32> = None;
+    let tps_cap: Option<u32> = Some(60);
 
     let desired_frame_time =
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
@@ -311,6 +311,7 @@ struct Particle {
     angle: f64,
 }
 
+#[derive(Clone)]
 struct Simulation {
     particles: Vec<Particle>
 }
@@ -412,8 +413,6 @@ impl Simulation {
             particle.pos = goal_pos;
         }
 
-
-        println!("{}", id);
         *PARTICLES.lock().as_mut().unwrap()
             .get_mut(id).unwrap() = self.particles.clone();
     }
@@ -452,7 +451,10 @@ impl Threader {
 
     fn update(&mut self) {
         for i in 0..self.simulations.len() {
-            self.simulations[i].update_simulation(i);
+            let mut sim = self.simulations[i].clone();
+            tokio::spawn(async move {
+                sim.update_simulation(i);
+            });
         }
     }
 }
