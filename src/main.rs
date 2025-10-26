@@ -192,14 +192,14 @@ fn line_line(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) -> Option<Vec2> {
     None
 }
 
+// https://www.jeffreythompson.org/collision-detection/line-point.php
 fn line_point(p1: Vec2, p2: Vec2, p3: Vec2) -> bool {
-    // use squared distance because it's just comparisons
-    let d1 = (p3.x - p1.x).powi(2) + (p3.y - p1.y).powi(2);
-    let d2 = (p3.x - p2.x).powi(2) + (p3.y - p2.y).powi(2);
+    let d1 = ((p3.x - p1.x).powi(2) + (p3.y - p1.y).powi(2)).sqrt();
+    let d2 = ((p3.x - p2.x).powi(2) + (p3.y - p2.y).powi(2)).sqrt();
 
-    let len = (p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2);
+    let len = ((p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2)).sqrt();
 
-    if d1 + d2 >= len - 0.02 && d1 + d2 <= len + 0.02 {
+    if d1 + d2 >= len - 0.2 && d1 + d2 <= len + 0.2 {
         return true;
     }
     false
