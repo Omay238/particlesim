@@ -56,7 +56,7 @@ async fn main() {
     let desired_frame_time =
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
 
-    let mut sim = Simulation::new(65536*2);
+    let mut sim = Simulation::new(65536 * 2);
 
     tokio::spawn(async move {
         loop {
@@ -120,7 +120,11 @@ impl quarkstrom::Renderer for Renderer {
             ctx.clear_lines();
 
             for particle in particles {
-                ctx.draw_circle(ultraviolet::Vec2::new(particle.pos.x as f32, particle.pos.y as f32), 0.001, [255, 255, 255, 255]);
+                ctx.draw_circle(
+                    ultraviolet::Vec2::new(particle.pos.x as f32, particle.pos.y as f32),
+                    0.001,
+                    [255, 255, 255, 255],
+                );
             }
         }
 
@@ -144,29 +148,18 @@ impl quarkstrom::Renderer for Renderer {
 
 // https://www.jeffreythompson.org/collision-detection/line-line.php
 fn line_line(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) -> Option<Vec2> {
-    let denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+    let u_a = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x))
+        / ((p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y));
+    let u_b = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x))
+        / ((p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y));
 
-    if denom.abs() < f64::EPSILON {
-        // Parallel or coincident
-        return None;
+    if u_a >= 0.0 && u_a <= 1.0 && u_b >= 0.0 && u_b <= 1.0 {
+        return Some(Vec2::new(
+            p1.x + (u_a * (p2.x - p1.x)),
+            p1.y + (u_a * (p2.y - p1.y)),
+        ));
     }
-
-    let ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
-    let ub = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) / denom;
-
-    // allow endpoints (corner hits), but use a small epsilon tolerance
-    let epsilon = 1e-6;
-
-    if ua >= -epsilon && ua <= 1.0 + epsilon && ub >= -epsilon && ub <= 1.0 + epsilon {
-        let intersection = Vec2::new(
-            p1.x + ua * (p2.x - p1.x),
-            p1.y + ua * (p2.y - p1.y),
-        );
-
-        Some(intersection)
-    } else {
-        None
-    }
+    None
 }
 
 fn line_point(p1: Vec2, p2: Vec2, p3: Vec2) -> bool {
@@ -181,8 +174,6 @@ fn line_point(p1: Vec2, p2: Vec2, p3: Vec2) -> bool {
     }
     false
 }
-
-
 
 #[derive(Clone)]
 struct Particle {
@@ -210,8 +201,8 @@ impl Simulation {
 
     fn update_simulation(&mut self) {
         for particle in &mut self.particles {
-            let mut goal_pos = particle.pos
-                + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.001;
+            let mut goal_pos =
+                particle.pos + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.001;
 
             let points = get_tarkosky_lines();
 
@@ -228,7 +219,10 @@ impl Simulation {
                     // https://www.desmos.com/calculator/popf3ryijo
 
                     // i couldn't find out how to get the normal without just arctan
-                    let normal = ((points[i].x as f64 - points[i + 1].x as f64) / (points[i].y as f64 - points[i + 1].y as f64)).atan() + std::f64::consts::FRAC_PI_2;
+                    let normal = ((points[i].x as f64 - points[i + 1].x as f64)
+                        / (points[i].y as f64 - points[i + 1].y as f64))
+                        .atan()
+                        + std::f64::consts::FRAC_PI_2;
                     let mut normal_vec = Vec2::new(normal.sin(), normal.cos());
 
                     let dir_vec = (goal_pos - particle.pos).normalized();
@@ -243,7 +237,11 @@ impl Simulation {
 
                     goal_pos = intersection_point
                         + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.001;
-                } else if line_point(particle.pos, goal_pos, Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4) {
+                } else if line_point(
+                    particle.pos,
+                    goal_pos,
+                    Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4,
+                ) {
                     particle.angle -= std::f64::consts::PI;
                     goal_pos = Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4
                         + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.001;
