@@ -12,34 +12,108 @@ static PARTICLES: Lazy<egui::mutex::Mutex<Option<Vec<Particle>>>> =
     Lazy::new(|| egui::mutex::Mutex::new(None));
 static STOPPED: Lazy<egui::mutex::Mutex<bool>> = Lazy::new(|| egui::mutex::Mutex::new(false));
 
-fn get_tarkosky_lines() -> Vec<ultraviolet::Vec2> {
+fn get_tarkosky_lines() -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2)> {
     vec![
-        ultraviolet::Vec2::new(0.0, 0.0),
-        ultraviolet::Vec2::new(1.0, 0.0),
-        ultraviolet::Vec2::new(1.0, 1.0),
-        ultraviolet::Vec2::new(2.0, 2.0),
-        ultraviolet::Vec2::new(2.0, 1.0),
-        ultraviolet::Vec2::new(3.0, 1.0),
-        ultraviolet::Vec2::new(3.0, 0.0),
-        ultraviolet::Vec2::new(4.0, 0.0),
-        ultraviolet::Vec2::new(3.0, -1.0),
-        ultraviolet::Vec2::new(2.0, -1.0),
-        ultraviolet::Vec2::new(2.0, -2.0),
-        ultraviolet::Vec2::new(1.0, -1.0),
-        ultraviolet::Vec2::new(0.0, -1.0),
-        ultraviolet::Vec2::new(0.0, -2.0),
-        ultraviolet::Vec2::new(-1.0, -1.0),
-        ultraviolet::Vec2::new(-2.0, -1.0),
-        ultraviolet::Vec2::new(-2.0, -2.0),
-        ultraviolet::Vec2::new(-3.0, -1.0),
-        ultraviolet::Vec2::new(-3.0, 0.0),
-        ultraviolet::Vec2::new(-4.0, 0.0),
-        ultraviolet::Vec2::new(-3.0, 1.0),
-        ultraviolet::Vec2::new(-2.0, 1.0),
-        ultraviolet::Vec2::new(-2.0, 2.0),
-        ultraviolet::Vec2::new(-1.0, 1.0),
-        ultraviolet::Vec2::new(-1.0, 0.0),
-        ultraviolet::Vec2::new(0.0, 0.0),
+        (
+            ultraviolet::Vec2::new(0.0, 0.0),
+            ultraviolet::Vec2::new(1.0, 0.0),
+        ),
+        (
+            ultraviolet::Vec2::new(1.0, 0.0),
+            ultraviolet::Vec2::new(1.0, 1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(1.0, 1.0),
+            ultraviolet::Vec2::new(2.0, 2.0),
+        ),
+        (
+            ultraviolet::Vec2::new(2.0, 2.0),
+            ultraviolet::Vec2::new(2.0, 1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(2.0, 1.0),
+            ultraviolet::Vec2::new(3.0, 1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(3.0, 1.0),
+            ultraviolet::Vec2::new(3.0, 0.0),
+        ),
+        (
+            ultraviolet::Vec2::new(3.0, 0.0),
+            ultraviolet::Vec2::new(4.0, 0.0),
+        ),
+        (
+            ultraviolet::Vec2::new(4.0, 0.0),
+            ultraviolet::Vec2::new(3.0, -1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(3.0, -1.0),
+            ultraviolet::Vec2::new(2.0, -1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(2.0, -1.0),
+            ultraviolet::Vec2::new(2.0, -2.0),
+        ),
+        (
+            ultraviolet::Vec2::new(2.0, -2.0),
+            ultraviolet::Vec2::new(1.0, -1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(1.0, -1.0),
+            ultraviolet::Vec2::new(0.0, -1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(0.0, -1.0),
+            ultraviolet::Vec2::new(0.0, -2.0),
+        ),
+        (
+            ultraviolet::Vec2::new(0.0, -2.0),
+            ultraviolet::Vec2::new(-1.0, -1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(-1.0, -1.0),
+            ultraviolet::Vec2::new(-2.0, -1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(-2.0, -1.0),
+            ultraviolet::Vec2::new(-2.0, -2.0),
+        ),
+        (
+            ultraviolet::Vec2::new(-2.0, -2.0),
+            ultraviolet::Vec2::new(-3.0, -1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(-3.0, -1.0),
+            ultraviolet::Vec2::new(-3.0, 0.0),
+        ),
+        (
+            ultraviolet::Vec2::new(-3.0, 0.0),
+            ultraviolet::Vec2::new(-4.0, 0.0),
+        ),
+        (
+            ultraviolet::Vec2::new(-4.0, 0.0),
+            ultraviolet::Vec2::new(-3.0, 1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(-3.0, 1.0),
+            ultraviolet::Vec2::new(-2.0, 1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(-2.0, 1.0),
+            ultraviolet::Vec2::new(-2.0, 2.0),
+        ),
+        (
+            ultraviolet::Vec2::new(-2.0, 2.0),
+            ultraviolet::Vec2::new(-1.0, 1.0),
+        ),
+        (
+            ultraviolet::Vec2::new(-1.0, 1.0),
+            ultraviolet::Vec2::new(-1.0, 0.0),
+        ),
+        (
+            ultraviolet::Vec2::new(-1.0, 0.0),
+            ultraviolet::Vec2::new(0.0, 0.0),
+        ),
     ]
 }
 
@@ -148,7 +222,7 @@ impl quarkstrom::Renderer for Renderer {
 
                 ctx.draw_circle(
                     ultraviolet::Vec2::new(particle.pos.x as f32, particle.pos.y as f32),
-                    0.1,
+                    1.1,
                     [r as u8, g as u8, b as u8, 255],
                 );
             }
@@ -158,8 +232,8 @@ impl quarkstrom::Renderer for Renderer {
             DemoType::Tarkosky => {
                 let points = get_tarkosky_lines();
 
-                for i in 0..points.len() - 1 {
-                    ctx.draw_line(points[i] * 40.0, points[i + 1] * 40.0, [255, 255, 255, 255]);
+                for i in 0..points.len() {
+                    ctx.draw_line(points[i].0 * 40.0, points[i].1 * 40.0, [255, 255, 255, 255]);
                 }
 
                 ctx.draw_circle(ultraviolet::Vec2::new(80.0, 0.0), 0.2, [255, 0, 0, 128]);
@@ -199,7 +273,7 @@ fn line_point(p1: Vec2, p2: Vec2, p3: Vec2) -> bool {
 
     let len = ((p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2)).sqrt();
 
-    if d1 + d2 >= len - 0.2 && d1 + d2 <= len + 0.2 {
+    if d1 + d2 >= len - 0.1 && d1 + d2 <= len + 0.1 {
         return true;
     }
     false
@@ -236,12 +310,12 @@ impl Simulation {
 
             let points = get_tarkosky_lines();
 
-            for i in 0..points.len() - 1 {
+            for i in 0..points.len() {
                 if let Some(intersection_point) = line_line(
                     particle.pos,
                     goal_pos,
-                    Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0,
-                    Vec2::new(points[i + 1].x as f64, points[i + 1].y as f64) * 40.0,
+                    Vec2::new(points[i].0.x as f64, points[i].0.y as f64) * 40.0,
+                    Vec2::new(points[i].1.x as f64, points[i].1.y as f64) * 40.0,
                 ) {
                     let remaining_dist = 0.1 - dst(particle.pos, intersection_point);
 
@@ -251,8 +325,8 @@ impl Simulation {
                     // https://www.desmos.com/calculator/popf3ryijo
 
                     // i couldn't find out how to get the normal without just arctan
-                    let normal = ((points[i].x as f64 - points[i + 1].x as f64)
-                        / (points[i].y as f64 - points[i + 1].y as f64))
+                    let normal = ((points[i].0.x as f64 - points[i].1.x as f64)
+                        / (points[i].0.y as f64 - points[i].1.y as f64))
                         .atan()
                         + std::f64::consts::FRAC_PI_2;
                     let mut normal_vec = Vec2::new(normal.sin(), normal.cos());
@@ -269,45 +343,46 @@ impl Simulation {
 
                     goal_pos = intersection_point
                         + Vec2::new(particle.angle.cos(), particle.angle.sin()) * remaining_dist;
-                } else if line_point(
-                    particle.pos,
-                    goal_pos,
-                    Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0,
-                ) {
-                    let intersection_point = Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0;
-
-                    let remaining_dist = 0.1 - dst(particle.pos, intersection_point);
-
-                    particle.pos = intersection_point;
-
-                    // lmaoooooo i used desmos to find this xd i don't know how it works
-                    // https://www.desmos.com/calculator/popf3ryijo
-
-                    // i couldn't find out how to get the normal without just arctan
-                    let idx_minus_one = ((i - 1) + points.len()) % points.len();
-
-                    let normal_a = ((points[i].x as f64 - points[i + 1].x as f64)
-                        / (points[i].y as f64 - points[i + 1].y as f64))
-                        .atan();
-                    let normal_b = ((points[idx_minus_one].x as f64 - points[i].x as f64)
-                        / (points[idx_minus_one].y as f64 - points[i].y as f64))
-                        .atan();
-                    let normal = (normal_a + normal_b) / 2.0 + std::f64::consts::FRAC_PI_2;
-                    let mut normal_vec = Vec2::new(normal.sin(), normal.cos());
-
-                    let dir_vec = (goal_pos - particle.pos).normalized();
-
-                    if dir_vec.dot(normal_vec) > 0.0 {
-                        normal_vec = -normal_vec;
-                    }
-
-                    let reflected = dir_vec - 2.0 * dir_vec.dot(normal_vec) * normal_vec;
-
-                    particle.angle = f64::atan2(reflected.y, reflected.x);
-
-                    goal_pos = intersection_point
-                        + Vec2::new(particle.angle.cos(), particle.angle.sin()) * remaining_dist;
                 }
+                // else if line_point(
+                //     particle.pos,
+                //     goal_pos,
+                //     Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0,
+                // ) {
+                //     let intersection_point = Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0;
+                //
+                //     let remaining_dist = 0.1 - dst(particle.pos, intersection_point);
+                //
+                //     particle.pos = intersection_point;
+                //
+                //     // lmaoooooo i used desmos to find this xd i don't know how it works
+                //     // https://www.desmos.com/calculator/popf3ryijo
+                //
+                //     // i couldn't find out how to get the normal without just arctan
+                //     let idx_minus_one = ((i - 1) + points.len()) % points.len();
+                //
+                //     let normal_a = ((points[i].x as f64 - points[i + 1].x as f64)
+                //         / (points[i].y as f64 - points[i + 1].y as f64))
+                //         .atan();
+                //     let normal_b = ((points[idx_minus_one].x as f64 - points[i].x as f64)
+                //         / (points[idx_minus_one].y as f64 - points[i].y as f64))
+                //         .atan();
+                //     let normal = (normal_a + normal_b) / 2.0 + std::f64::consts::FRAC_PI_2;
+                //     let mut normal_vec = Vec2::new(normal.sin(), normal.cos());
+                //
+                //     let dir_vec = (goal_pos - particle.pos).normalized();
+                //
+                //     if dir_vec.dot(normal_vec) < 0.0 {
+                //         normal_vec = -normal_vec;
+                //     }
+                //
+                //     let reflected = dir_vec - 2.0 * dir_vec.dot(normal_vec) * normal_vec;
+                //
+                //     particle.angle = f64::atan2(normal_vec.y, normal_vec.x);
+                //
+                //     goal_pos = intersection_point
+                //         + Vec2::new(particle.angle.cos(), particle.angle.sin()) * remaining_dist;
+                // }
             }
 
             particle.pos = goal_pos;
