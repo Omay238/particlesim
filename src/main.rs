@@ -199,7 +199,7 @@ fn line_point(p1: Vec2, p2: Vec2, p3: Vec2) -> bool {
 
     let len = (p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2);
 
-    if d1 + d2 >= len - 0.05 && d1 + d2 <= len + 0.05 {
+    if d1 + d2 >= len - 0.02 && d1 + d2 <= len + 0.02 {
         return true;
     }
     false
@@ -277,7 +277,34 @@ impl Simulation {
                     let intersection_point = Vec2::new(points[i].x as f64, points[i].y as f64) * 40.0;
 
                     let remaining_dist = 0.1 - dst(particle.pos, intersection_point);
-                    particle.angle -= std::f64::consts::PI;
+
+                    particle.pos = intersection_point;
+
+                    // lmaoooooo i used desmos to find this xd i don't know how it works
+                    // https://www.desmos.com/calculator/popf3ryijo
+
+                    // i couldn't find out how to get the normal without just arctan
+                    let idx_minus_one = ((i - 1) + points.len()) % points.len();
+
+                    let normal_a = ((points[i].x as f64 - points[i + 1].x as f64)
+                        / (points[i].y as f64 - points[i + 1].y as f64))
+                        .atan();
+                    let normal_b = ((points[idx_minus_one].x as f64 - points[i].x as f64)
+                        / (points[idx_minus_one].y as f64 - points[i].y as f64))
+                        .atan();
+                    let normal = (normal_a + normal_b) / 2.0 + std::f64::consts::FRAC_PI_2;
+                    let mut normal_vec = Vec2::new(normal.sin(), normal.cos());
+
+                    let dir_vec = (goal_pos - particle.pos).normalized();
+
+                    if dir_vec.dot(normal_vec) > 0.0 {
+                        normal_vec = -normal_vec;
+                    }
+
+                    let reflected = dir_vec - 2.0 * dir_vec.dot(normal_vec) * normal_vec;
+
+                    particle.angle = f64::atan2(reflected.y, reflected.x);
+
                     goal_pos = intersection_point
                         + Vec2::new(particle.angle.cos(), particle.angle.sin()) * remaining_dist;
                 }
