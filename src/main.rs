@@ -8,7 +8,7 @@ use winit_input_helper::WinitInputHelper;
 use once_cell::sync::Lazy;
 
 // Used to communicate between the simulation and renderer threads
-static PARTICLES: Lazy<egui::mutex::Mutex<Option<Vec<Particle>>>> =
+static PARTICLES: Lazy<egui::mutex::Mutex<Option<Vec<Vec<Particle>>>>> =
     Lazy::new(|| egui::mutex::Mutex::new(None));
 static STOPPED: Lazy<egui::mutex::Mutex<bool>> = Lazy::new(|| egui::mutex::Mutex::new(false));
 
@@ -153,14 +153,13 @@ async fn main() {
     let desired_frame_time =
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
 
-    let mut sim = Simulation::new(65536);
+    let mut threader = Threader::new(4, 65536).await;
 
     tokio::spawn(async move {
         loop {
             let frame_timer = std::time::Instant::now();
 
-            sim.update_simulation();
-            // simulation.convert();
+            threader.update();
 
             // Cap tps
             if let Some(desired_frame_time) = desired_frame_time {
@@ -216,40 +215,42 @@ impl quarkstrom::Renderer for Renderer {
             ctx.clear_circles();
             ctx.clear_lines();
 
-            for particle in particles {
-                // https://www.rapidtables.com/convert/color/hsl-to-rgb.html
-                let h = particle.angle / std::f64::consts::PI * 180.0;
-                let s = 1.0f64;
-                let l = 0.5f64;
-
-                let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
-                let x = c * (1.0 - (h / 60.0 % 2.0 - 1.0).abs());
-                let m = l - c / 2.0;
-
-                let (rp, gp, bp): (f64, f64, f64) = {
+            for particle_vec in particles {
+                for particle in particle_vec {
+                    // https://www.rapidtables.com/convert/color/hsl-to-rgb.html
                     let h = particle.angle / std::f64::consts::PI * 180.0;
-                    if h < 60.0 {
-                        (c, x, 0.0)
-                    } else if h < 120.0 {
-                        (x, c, 0.0)
-                    } else if h < 180.0 {
-                        (0.0, c, x)
-                    } else if h < 240.0 {
-                        (0.0, x, c)
-                    } else if h < 300.0 {
-                        (x, 0.0, c)
-                    } else {
-                        (c, 0.0, x)
-                    }
-                };
+                    let s = 1.0f64;
+                    let l = 0.5f64;
 
-                let (r, g, b) = ((rp + m) * 255.0, (gp + m) * 255.0, (bp + m) * 255.0);
+                    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+                    let x = c * (1.0 - (h / 60.0 % 2.0 - 1.0).abs());
+                    let m = l - c / 2.0;
 
-                ctx.draw_circle(
-                    ultraviolet::Vec2::new(particle.pos.x as f32, particle.pos.y as f32),
-                    0.1,
-                    [r as u8, g as u8, b as u8, 255],
-                );
+                    let (rp, gp, bp): (f64, f64, f64) = {
+                        let h = particle.angle / std::f64::consts::PI * 180.0;
+                        if h < 60.0 {
+                            (c, x, 0.0)
+                        } else if h < 120.0 {
+                            (x, c, 0.0)
+                        } else if h < 180.0 {
+                            (0.0, c, x)
+                        } else if h < 240.0 {
+                            (0.0, x, c)
+                        } else if h < 300.0 {
+                            (x, 0.0, c)
+                        } else {
+                            (c, 0.0, x)
+                        }
+                    };
+
+                    let (r, g, b) = ((rp + m) * 255.0, (gp + m) * 255.0, (bp + m) * 255.0);
+
+                    ctx.draw_circle(
+                        ultraviolet::Vec2::new(particle.pos.x as f32, particle.pos.y as f32),
+                        0.1,
+                        [r as u8, g as u8, b as u8, 255],
+                    );
+                }
             }
         }
 
@@ -311,24 +312,29 @@ struct Particle {
 }
 
 struct Simulation {
-    particles: Vec<Particle>,
+    particles: Vec<Particle>
 }
 
 impl Simulation {
-    fn new(num_particles: usize) -> Self {
-        let mut particles: Vec<Particle> = Vec::new();
-
-        for i in 0..num_particles {
-            particles.push(Particle {
-                pos: Vec2::new(-80.0, 0.0),
-                angle: std::f64::consts::TAU * (i as f64 / num_particles as f64),
-            });
+    fn new(num_particles: usize, init_particles: Option<Vec<Particle>>) -> Self {
+        let mut particles = Vec::new();
+        if let Some(ptcls) = init_particles {
+            particles = ptcls
+        } else {
+            for i in 0..num_particles {
+                particles.push(Particle {
+                    pos: Vec2::new(-80.0, 0.0),
+                    angle: std::f64::consts::TAU * (i as f64 / num_particles as f64),
+                });
+            }
         }
 
-        Self { particles }
+        Self {
+            particles
+        }
     }
 
-    fn update_simulation(&mut self) {
+    fn update_simulation(&mut self, id: usize) {
         for particle in &mut self.particles {
             let mut goal_pos =
                 particle.pos + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.1;
@@ -406,6 +412,47 @@ impl Simulation {
             particle.pos = goal_pos;
         }
 
-        *PARTICLES.lock() = Some(self.particles.clone());
+
+        println!("{}", id);
+        *PARTICLES.lock().as_mut().unwrap()
+            .get_mut(id).unwrap() = self.particles.clone();
+    }
+}
+
+struct Threader {
+    simulations: Vec<Simulation>
+}
+
+impl Threader {
+    async fn new(sims: usize, particles_per_sim: usize) -> Self {
+        let mut simulations: Vec<Simulation> = Vec::new();
+
+        let mut global_particles: Vec<Vec<Particle>> = Vec::new();
+
+        for sim in 0..sims {
+            global_particles.push(Vec::new());
+
+            *PARTICLES.lock() = Some(global_particles.clone());
+
+            let mut particles = Vec::new();
+            for i in 0..particles_per_sim {
+                particles.push(Particle {
+                    pos: Vec2::new(-80.0, 0.0),
+                    angle: std::f64::consts::TAU * ((i + sim * particles_per_sim) as f64 / (particles_per_sim * sims) as f64),
+                });
+            }
+
+            simulations.push(Simulation::new(particles_per_sim, Some(particles)));
+        }
+
+        Self {
+            simulations
+        }
+    }
+
+    fn update(&mut self) {
+        for i in 0..self.simulations.len() {
+            self.simulations[i].update_simulation(i);
+        }
     }
 }
