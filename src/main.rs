@@ -49,12 +49,12 @@ async fn main() {
         window_mode: quarkstrom::WindowMode::Windowed(1280, 720),
     };
 
-    let tps_cap: Option<u32> = Some(60);
+    let tps_cap: Option<u32> = None;
 
     let desired_frame_time =
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
 
-    let mut sim = Simulation::new(65536 * 2);
+    let mut sim = Simulation::new(65536);
 
     tokio::spawn(async move {
         loop {
@@ -118,10 +118,38 @@ impl quarkstrom::Renderer for Renderer {
             ctx.clear_lines();
 
             for particle in particles {
+                // https://www.rapidtables.com/convert/color/hsl-to-rgb.html
+                let h = particle.angle / std::f64::consts::PI * 180.0;
+                let s = 1.0f64;
+                let l = 0.5f64;
+
+                let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+                let x = c * (1.0 - (h / 60.0 % 2.0 - 1.0).abs());
+                let m = l - c / 2.0;
+
+                let (rp, gp, bp): (f64, f64, f64) = {
+                    let h = particle.angle / std::f64::consts::PI * 180.0;
+                    if h < 60.0 {
+                        (c, x, 0.0)
+                    } else if h < 120.0 {
+                        (x, c, 0.0)
+                    } else if h < 180.0 {
+                        (0.0, c, x)
+                    } else if h < 240.0 {
+                        (0.0, x, c)
+                    } else if h < 300.0 {
+                        (x, 0.0, c)
+                    } else {
+                        (c, 0.0, x)
+                    }
+                };
+
+                let (r, g, b) = ((rp + m) * 255.0, (gp + m) * 255.0, (bp + m) * 255.0);
+
                 ctx.draw_circle(
                     ultraviolet::Vec2::new(particle.pos.x as f32, particle.pos.y as f32),
-                    0.001,
-                    [255, 255, 255, 255],
+                    0.01,
+                    [r as u8, g as u8, b as u8, 255],
                 );
             }
         }
@@ -167,7 +195,7 @@ fn line_point(p1: Vec2, p2: Vec2, p3: Vec2) -> bool {
 
     let len = (p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2);
 
-    if d1 + d2 >= len - 0.00001 && d1 + d2 <= len + 0.00001 {
+    if d1 + d2 >= len - 0.000005 && d1 + d2 <= len + 0.000005 {
         return true;
     }
     false
@@ -241,8 +269,7 @@ impl Simulation {
                     Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4,
                 ) {
                     particle.angle -= std::f64::consts::PI;
-                    goal_pos = Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4
-                        + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.001;
+                    goal_pos = Vec2::new(points[i].x as f64, points[i].y as f64) * 0.4;
                 }
             }
 
