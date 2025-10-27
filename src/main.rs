@@ -361,7 +361,7 @@ impl quarkstrom::Renderer for Renderer {
             for particle_vec in particles {
                 for particle in particle_vec {
                     // https://www.rapidtables.com/convert/color/hsl-to-rgb.html
-                    let h = particle.angle / std::f64::consts::PI * 180.0;
+                    let h = particle.heading.y.atan2(particle.heading.x) / std::f64::consts::PI * 180.0;
                     let s = 1.0f64;
                     let l = 0.5f64;
 
@@ -370,7 +370,6 @@ impl quarkstrom::Renderer for Renderer {
                     let m = l - c / 2.0;
 
                     let (rp, gp, bp): (f64, f64, f64) = {
-                        let h = particle.angle / std::f64::consts::PI * 180.0;
                         if h < 60.0 {
                             (c, x, 0.0)
                         } else if h < 120.0 {
@@ -454,7 +453,7 @@ fn line_point(p1: Vec2, p2: Vec2, p3: Vec2) -> bool {
 #[derive(Clone)]
 struct Particle {
     pos: Vec2,
-    angle: f64,
+    heading: Vec2,
 }
 
 #[derive(Clone)]
@@ -470,9 +469,10 @@ impl Simulation {
             particles = ptcls
         } else {
             for i in 0..num_particles {
+                let angle = std::f64::consts::TAU * (i as f64 / num_particles as f64);
                 particles.push(Particle {
                     pos: Vec2::new(-80.0, 0.0),
-                    angle: std::f64::consts::TAU * (i as f64 / num_particles as f64),
+                    heading: Vec2::new(angle.cos(), angle.sin()),
                 });
             }
         }
@@ -486,7 +486,7 @@ impl Simulation {
     fn update_simulation(&mut self, id: usize) {
         for particle in &mut self.particles {
             let mut goal_pos =
-                particle.pos + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.1;
+                particle.pos + particle.heading * 0.1;
 
             let points = get_lines(&DEMO_TYPE.lock());
 
@@ -519,10 +519,10 @@ impl Simulation {
 
                     let reflected = dir_vec - 2.0 * dir_vec.dot(normal_vec) * normal_vec;
 
-                    particle.angle = f64::atan2(reflected.y, reflected.x);
+                    particle.heading = reflected;
 
                     goal_pos = intersection_point
-                        + Vec2::new(particle.angle.cos(), particle.angle.sin()) * remaining_dist;
+                        + particle.heading * remaining_dist;
                 } else if line_point(
                     particle.pos,
                     goal_pos,
@@ -552,10 +552,10 @@ impl Simulation {
 
                     let reflected = dir_vec - 2.0 * dir_vec.dot(normal_vec) * normal_vec;
 
-                    particle.angle = f64::atan2(reflected.y, reflected.x);
+                    particle.heading = reflected;
 
                     goal_pos = intersection_point
-                        + Vec2::new(particle.angle.sin(), particle.angle.cos()) * remaining_dist;
+                        + particle.heading * remaining_dist;
                 }
             }
 
@@ -599,9 +599,10 @@ impl Threader {
 
             let mut particles = Vec::new();
             for i in 0..particles_per_sim {
+                let angle = std::f64::consts::TAU * ((i + sim * particles_per_sim) as f64 / (particles_per_sim * sims) as f64);
                 particles.push(Particle {
                     pos: Vec2::new(-80.0, 0.0),
-                    angle: std::f64::consts::TAU * ((i + sim * particles_per_sim) as f64 / (particles_per_sim * sims) as f64),
+                    heading: Vec2::new(angle.cos(), angle.sin()),
                 });
             }
 
