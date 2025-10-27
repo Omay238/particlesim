@@ -623,9 +623,7 @@ impl Threader {
                 let frame_timer = std::time::Instant::now();
 
                 *STEPS.lock() += 1;
-
-                println!("{}", STEPS.lock().clone());
-
+                
                 // Cap tps
                 if let Some(desired_frame_time) = desired_frame_time {
                     while frame_timer.elapsed() < desired_frame_time {}
