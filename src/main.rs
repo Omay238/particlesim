@@ -361,7 +361,7 @@ impl quarkstrom::Renderer for Renderer {
             for particle_vec in particles {
                 for particle in particle_vec {
                     // https://www.rapidtables.com/convert/color/hsl-to-rgb.html
-                    let h = particle.heading.y.atan2(particle.heading.x) / std::f64::consts::PI * 180.0;
+                    let h = (particle.heading.y.atan2(particle.heading.x) + std::f64::consts::PI) * 180.0 / std::f64::consts::PI;
                     let s = 1.0f64;
                     let l = 0.5f64;
 
