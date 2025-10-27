@@ -273,8 +273,7 @@ fn get_lines(demo_type: &DemoType) -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2,
     }
 }
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 9)]
-async fn main() {
+fn main() {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(8)
         .enable_all()
