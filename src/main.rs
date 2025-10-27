@@ -273,8 +273,14 @@ fn get_lines(demo_type: &DemoType) -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2,
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 9)]
 async fn main() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(8)
+        .enable_all()
+        .build()
+        .unwrap();
+
     let config = quarkstrom::Config {
         window_mode: quarkstrom::WindowMode::Windowed(1280, 720),
     };
@@ -284,27 +290,29 @@ async fn main() {
     let desired_frame_time =
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
 
-    let mut threader = Threader::new(8, 65536/8).await;
+    let mut threader = Threader::new(8, 8192).await;
 
     // let mut simulation = Simulation::new(65536, None);
 
-    tokio::spawn(async move {
-        loop {
-            let frame_timer = std::time::Instant::now();
+    threader.init(&rt);
 
-            threader.update();
-            // simulation.update_simulation(0);
-
-            // Cap tps
-            if let Some(desired_frame_time) = desired_frame_time {
-                while frame_timer.elapsed() < desired_frame_time {}
-            }
-
-            if *STOPPED.lock() {
-                break;
-            }
-        }
-    });
+    // tokio::spawn(async move {
+    //     loop {
+    //         let frame_timer = std::time::Instant::now();
+    //
+    //         threader.update();
+    //         // simulation.update_simulation(0);
+    //
+    //         // Cap tps
+    //         if let Some(desired_frame_time) = desired_frame_time {
+    //             while frame_timer.elapsed() < desired_frame_time {}
+    //         }
+    //
+    //         if *STOPPED.lock() {
+    //             break;
+    //         }
+    //     }
+    // });
 
     quarkstrom::run::<Renderer>(config);
     *STOPPED.lock() = true;
@@ -474,11 +482,6 @@ impl Simulation {
     }
 
     fn update_simulation(&mut self, id: usize) {
-        let pt = (*PARTICLES.lock().as_mut().unwrap().get_mut(id).unwrap()).to_vec();
-        if pt.len() > 0 {
-            self.particles = pt;
-        }
-
         for particle in &mut self.particles {
             let mut goal_pos =
                 particle.pos + Vec2::new(particle.angle.cos(), particle.angle.sin()) * 0.1;
@@ -558,6 +561,18 @@ impl Simulation {
 
         *PARTICLES.lock().as_mut().unwrap().get_mut(id).unwrap() = self.particles.clone();
     }
+
+    fn register_manager(mut self, id: usize, rt: &tokio::runtime::Runtime) {
+        rt.spawn(async move {
+            loop {
+                self.update_simulation(id);
+
+                if *STOPPED.lock() {
+                    break;
+                }
+            }
+        });
+    }
 }
 
 struct Threader {
@@ -591,12 +606,10 @@ impl Threader {
         }
     }
 
-    fn update(&mut self) {
+    fn init(&mut self, rt: &tokio::runtime::Runtime) {
         for i in 0..self.simulations.len() {
-            let mut sim = self.simulations[i].clone();
-            tokio::spawn(async move {
-                sim.update_simulation(i);
-            });
+            let sim = self.simulations[i].clone();
+            sim.register_manager(i, &rt);
         }
     }
 }
