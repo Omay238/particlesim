@@ -13,6 +13,7 @@ static PARTICLES: Lazy<egui::mutex::Mutex<Option<Vec<Vec<Particle>>>>> =
 static STOPPED: Lazy<egui::mutex::Mutex<bool>> = Lazy::new(|| egui::mutex::Mutex::new(false));
 static DEMO_TYPE: Lazy<egui::mutex::Mutex<DemoType>> = Lazy::new(|| egui::mutex::Mutex::new(DemoType::Castro));
 static STEPS: Lazy<egui::mutex::Mutex<usize>> = Lazy::new(|| egui::mutex::Mutex::new(0));
+static THREADS: Lazy<egui::mutex::Mutex<usize>> = Lazy::new(|| egui::mutex::Mutex::new(8));
 
 // this function lowkey sucks really hard lmao
 fn get_lines(demo_type: &DemoType) -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2, ultraviolet::Vec2)> {
@@ -277,7 +278,7 @@ fn get_lines(demo_type: &DemoType) -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2,
 #[tokio::main]
 async fn main() {
     let rt = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(13)
+        .worker_threads(*THREADS.lock() + 1)
         .enable_all()
         .build()
         .unwrap();
@@ -291,7 +292,7 @@ async fn main() {
     let desired_frame_time =
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
 
-    let mut threader = Threader::new(8, 2048).await;
+    let mut threader = Threader::new(*THREADS.lock(), 8192).await;
 
     // let mut simulation = Simulation::new(65536, None);
 
@@ -318,7 +319,8 @@ async fn main() {
     *STOPPED.lock() = true;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
+#[derive(PartialEq)]
 enum DemoType {
     Tarkosky,
     Castro
@@ -327,16 +329,14 @@ enum DemoType {
 #[derive(Clone)]
 struct Renderer {
     pos: Vec2,
-    scale: f32,
-    demo_type: DemoType,
+    scale: f32
 }
 
 impl quarkstrom::Renderer for Renderer {
     fn new() -> Self {
         Self {
             pos: Vec2::new(0.0, 0.0),
-            scale: 100.0,
-            demo_type: DEMO_TYPE.lock().to_owned(),
+            scale: 100.0
         }
     }
 
@@ -396,13 +396,13 @@ impl quarkstrom::Renderer for Renderer {
             }
         }
 
-        let points = get_lines(&self.demo_type);
+        let points = get_lines(&*DEMO_TYPE.lock());
 
         for i in 0..points.len() {
             ctx.draw_line(points[i].0 * 40.0, points[i].1 * 40.0, [255, 255, 255, 255]);
         }
 
-        match self.demo_type {
+        match *DEMO_TYPE.lock() {
             DemoType::Tarkosky => {
                 ctx.draw_circle(ultraviolet::Vec2::new(80.0, 0.0), 0.2, [255, 0, 0, 128]);
             },
@@ -412,8 +412,20 @@ impl quarkstrom::Renderer for Renderer {
         }
     }
 
-    fn gui(&mut self, _ctx: &egui::Context) {
-        return;
+    fn gui(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Billiards").show(&ctx, |ui| {
+            let before = DEMO_TYPE.lock().clone();
+            egui::ComboBox::from_label("Boundaries")
+                .selected_text(format!("{:?}", *DEMO_TYPE.lock()))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut *DEMO_TYPE.lock(), DemoType::Tarkosky, "Tarkosky");
+                    ui.selectable_value(&mut *DEMO_TYPE.lock(), DemoType::Castro, "Castro");
+                }).response;
+
+            if before != *DEMO_TYPE.lock() {
+                *PARTICLES.lock() = vec![vec![]; *THREADS.lock()].into();
+            }
+        });
     }
 }
 
@@ -451,6 +463,7 @@ fn line_point(p1: Vec2, p2: Vec2, p3: Vec2) -> bool {
 }
 
 #[derive(Clone)]
+#[derive(PartialEq)]
 struct Particle {
     pos: Vec2,
     heading: Vec2,
@@ -459,6 +472,7 @@ struct Particle {
 #[derive(Clone)]
 struct Simulation {
     particles: Vec<Particle>,
+    initial_particles: Vec<Particle>,
     steps: usize
 }
 
@@ -478,12 +492,17 @@ impl Simulation {
         }
 
         Self {
-            particles,
+            particles: particles.clone(),
+            initial_particles: particles,
             steps: 0
         }
     }
 
     fn update_simulation(&mut self, id: usize) {
+        if *PARTICLES.lock().as_mut().unwrap().get_mut(id).unwrap() != self.particles {
+            self.particles = self.initial_particles.clone();
+        }
+
         for particle in &mut self.particles {
             let mut goal_pos =
                 particle.pos + particle.heading * 0.1;
