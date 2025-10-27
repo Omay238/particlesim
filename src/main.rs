@@ -273,9 +273,10 @@ fn get_lines(demo_type: &DemoType) -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2,
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let rt = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(8)
+        .worker_threads(12)
         .enable_all()
         .build()
         .unwrap();
@@ -289,7 +290,7 @@ fn main() {
     let desired_frame_time =
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
 
-    let mut threader = Threader::new(8, 8192).await;
+    let mut threader = Threader::new(12, 5462).await;
 
     // let mut simulation = Simulation::new(65536, None);
 
