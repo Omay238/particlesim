@@ -12,6 +12,7 @@ static PARTICLES: Lazy<egui::mutex::Mutex<Option<Vec<Vec<Particle>>>>> =
     Lazy::new(|| egui::mutex::Mutex::new(vec![vec![]].into()));
 static STOPPED: Lazy<egui::mutex::Mutex<bool>> = Lazy::new(|| egui::mutex::Mutex::new(false));
 static DEMO_TYPE: Lazy<egui::mutex::Mutex<DemoType>> = Lazy::new(|| egui::mutex::Mutex::new(DemoType::Castro));
+static STEPS: Lazy<egui::mutex::Mutex<usize>> = Lazy::new(|| egui::mutex::Mutex::new(0));
 
 // this function lowkey sucks really hard lmao
 fn get_lines(demo_type: &DemoType) -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2, ultraviolet::Vec2)> {
@@ -276,7 +277,7 @@ fn get_lines(demo_type: &DemoType) -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2,
 #[tokio::main]
 async fn main() {
     let rt = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(12)
+        .worker_threads(13)
         .enable_all()
         .build()
         .unwrap();
@@ -285,7 +286,7 @@ async fn main() {
         window_mode: quarkstrom::WindowMode::Windowed(1280, 720),
     };
 
-    let tps_cap: Option<u32> = None;
+    let tps_cap: Option<u32> = Some(60);
 
     let desired_frame_time =
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
@@ -294,14 +295,13 @@ async fn main() {
 
     // let mut simulation = Simulation::new(65536, None);
 
-    threader.init(&rt);
+    threader.init(desired_frame_time, &rt);
 
     // tokio::spawn(async move {
     //     loop {
     //         let frame_timer = std::time::Instant::now();
     //
-    //         threader.update();
-    //         // simulation.update_simulation(0);
+    //         simulation.update_simulation(0);
     //
     //         // Cap tps
     //         if let Some(desired_frame_time) = desired_frame_time {
@@ -459,7 +459,8 @@ struct Particle {
 
 #[derive(Clone)]
 struct Simulation {
-    particles: Vec<Particle>
+    particles: Vec<Particle>,
+    steps: usize
 }
 
 impl Simulation {
@@ -477,7 +478,8 @@ impl Simulation {
         }
 
         Self {
-            particles
+            particles,
+            steps: 0
         }
     }
 
@@ -538,12 +540,13 @@ impl Simulation {
                     // i couldn't find out how to get the normal without just arctan
                     let normal = ((points[i].0.x as f64 - points[i].2.x as f64)
                         / (points[i].0.y as f64 - points[i].2.y as f64))
-                        .atan() + std::f64::consts::FRAC_PI_2;
+                        .atan()
+                        + std::f64::consts::FRAC_PI_2;
                     let mut normal_vec = Vec2::new(normal.sin(), normal.cos());
 
                     let dir_vec = (goal_pos - particle.pos).normalized();
 
-                    if dir_vec.dot(normal_vec) < 0.0 {
+                    if dir_vec.dot(normal_vec) > 0.0 {
                         normal_vec = -normal_vec;
                     }
 
@@ -566,6 +569,10 @@ impl Simulation {
         rt.spawn(async move {
             loop {
                 self.update_simulation(id);
+
+                self.steps += 1;
+
+                while *STEPS.lock() < self.steps {}
 
                 if *STOPPED.lock() {
                     break;
@@ -606,10 +613,24 @@ impl Threader {
         }
     }
 
-    fn init(&mut self, rt: &tokio::runtime::Runtime) {
+    fn init(&mut self, desired_frame_time: Option<std::time::Duration>, rt: &tokio::runtime::Runtime) {
         for i in 0..self.simulations.len() {
             let sim = self.simulations[i].clone();
             sim.register_manager(i, &rt);
         }
+        rt.spawn(async move {
+            loop {
+                let frame_timer = std::time::Instant::now();
+
+                *STEPS.lock() += 1;
+
+                println!("{}", STEPS.lock().clone());
+
+                // Cap tps
+                if let Some(desired_frame_time) = desired_frame_time {
+                    while frame_timer.elapsed() < desired_frame_time {}
+                }
+            }
+        });
     }
 }
