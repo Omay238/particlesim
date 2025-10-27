@@ -8,14 +8,20 @@ use winit_input_helper::WinitInputHelper;
 use once_cell::sync::Lazy;
 
 // Used to communicate between the simulation and renderer threads
+// all the particles from the simulations so the renderer can see it
 static PARTICLES: Lazy<egui::mutex::Mutex<Option<Vec<Vec<Particle>>>>> =
     Lazy::new(|| egui::mutex::Mutex::new(vec![vec![]].into()));
+// self-explanatory. is it stopped?
 static STOPPED: Lazy<egui::mutex::Mutex<bool>> = Lazy::new(|| egui::mutex::Mutex::new(false));
+// which of the whopping 2 maps is it using
 static DEMO_TYPE: Lazy<egui::mutex::Mutex<DemoType>> = Lazy::new(|| egui::mutex::Mutex::new(DemoType::Castro));
+// amount of steps into the simulation
 static STEPS: Lazy<egui::mutex::Mutex<usize>> = Lazy::new(|| egui::mutex::Mutex::new(0));
+// this is the number of threads
 static THREADS: Lazy<egui::mutex::Mutex<usize>> = Lazy::new(|| egui::mutex::Mutex::new(8));
 
 // this function lowkey sucks really hard lmao
+// i'd refactor it but i'm tired
 fn get_lines(demo_type: &DemoType) -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2, ultraviolet::Vec2)> {
     match demo_type {
         DemoType::Tarkosky => vec![
@@ -275,6 +281,7 @@ fn get_lines(demo_type: &DemoType) -> Vec<(ultraviolet::Vec2, ultraviolet::Vec2,
     }
 }
 
+// wow it's two asyncs
 #[tokio::main]
 async fn main() {
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -293,11 +300,9 @@ async fn main() {
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
 
     let mut threader = Threader::new(*THREADS.lock(), 8192).await;
-
-    // let mut simulation = Simulation::new(65536, None);
-
     threader.init(desired_frame_time, &rt);
 
+    // let mut simulation = Simulation::new(65536, None);
     // tokio::spawn(async move {
     //     loop {
     //         let frame_timer = std::time::Instant::now();
@@ -396,6 +401,7 @@ impl quarkstrom::Renderer for Renderer {
             }
         }
 
+        // symbols xd
         let points = get_lines(&*DEMO_TYPE.lock());
 
         for i in 0..points.len() {
@@ -435,6 +441,7 @@ fn dst(p1: Vec2, p2: Vec2) -> f64 {
 
 // https://www.jeffreythompson.org/collision-detection/line-line.php
 fn line_line(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) -> Option<Vec2> {
+    // how does this work? i haven't a clue
     let u_a = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x))
         / ((p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y));
     let u_b = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x))
@@ -499,6 +506,7 @@ impl Simulation {
     }
 
     fn update_simulation(&mut self, id: usize) {
+        // uhh, reset particles when particles are reset
         if *PARTICLES.lock().as_mut().unwrap().get_mut(id).unwrap() != self.particles {
             self.particles = self.initial_particles.clone();
         }
@@ -528,14 +536,18 @@ impl Simulation {
                         / (points[i].0.y as f64 - points[i].1.y as f64))
                         .atan()
                         + std::f64::consts::FRAC_PI_2;
+                    // make the normal into a vector
                     let mut normal_vec = Vec2::new(normal.sin(), normal.cos());
 
+                    // where is the particle going?
                     let dir_vec = (goal_pos - particle.pos).normalized();
 
+                    // make sure the normal is in the right direction
                     if dir_vec.dot(normal_vec) > 0.0 {
                         normal_vec = -normal_vec;
                     }
 
+                    // reflect the particle across the normal
                     let reflected = dir_vec - 2.0 * dir_vec.dot(normal_vec) * normal_vec;
 
                     particle.heading = reflected;
@@ -561,14 +573,18 @@ impl Simulation {
                         / (points[i].0.y as f64 - points[i].2.y as f64))
                         .atan()
                         + std::f64::consts::FRAC_PI_2;
+                    // make the normal into a vector
                     let mut normal_vec = Vec2::new(normal.sin(), normal.cos());
 
+                    // where is the particle going?
                     let dir_vec = (goal_pos - particle.pos).normalized();
 
+                    // make sure the normal is in the right direction
                     if dir_vec.dot(normal_vec) > 0.0 {
                         normal_vec = -normal_vec;
                     }
 
+                    // reflect the particle across the normal
                     let reflected = dir_vec - 2.0 * dir_vec.dot(normal_vec) * normal_vec;
 
                     particle.heading = reflected;
@@ -591,6 +607,7 @@ impl Simulation {
 
                 self.steps += 1;
 
+                // keep locked to global thread
                 while *STEPS.lock() < self.steps {}
 
                 if *STOPPED.lock() {
@@ -636,12 +653,14 @@ impl Threader {
     fn init(&mut self, desired_frame_time: Option<std::time::Duration>, rt: &tokio::runtime::Runtime) {
         for i in 0..self.simulations.len() {
             let sim = self.simulations[i].clone();
+            // create all of the subprocesses
             sim.register_manager(i, &rt);
         }
         rt.spawn(async move {
             loop {
                 let frame_timer = std::time::Instant::now();
 
+                // make all the threads locked to the speed of a central thread
                 *STEPS.lock() += 1;
 
                 // Cap tps
