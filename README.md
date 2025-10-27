@@ -32,4 +32,4 @@ Press shift to zoom into a point of interest (if applicable), and escape to clos
 
 ## Demo
 
-&lt;put this in, future me!&gt;
+https://github.com/user-attachments/assets/c9a6ce0e-f25f-489b-a9aa-490eafa9d3da
