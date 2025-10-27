@@ -291,7 +291,7 @@ async fn main() {
     let desired_frame_time =
         tps_cap.map(|tps| std::time::Duration::from_secs_f64(1.0 / tps as f64));
 
-    let mut threader = Threader::new(12, 5462).await;
+    let mut threader = Threader::new(8, 2048).await;
 
     // let mut simulation = Simulation::new(65536, None);
 
@@ -555,7 +555,7 @@ impl Simulation {
                     particle.angle = f64::atan2(reflected.y, reflected.x);
 
                     goal_pos = intersection_point
-                        + Vec2::new(particle.angle.cos(), particle.angle.sin()) * remaining_dist;
+                        + Vec2::new(particle.angle.sin(), particle.angle.cos()) * remaining_dist;
                 }
             }
 
@@ -623,7 +623,7 @@ impl Threader {
                 let frame_timer = std::time::Instant::now();
 
                 *STEPS.lock() += 1;
-                
+
                 // Cap tps
                 if let Some(desired_frame_time) = desired_frame_time {
                     while frame_timer.elapsed() < desired_frame_time {}
